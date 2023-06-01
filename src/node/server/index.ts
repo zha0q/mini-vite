@@ -6,6 +6,7 @@ import { createPluginContainer, PluginContainer } from "../pluginContainer";
 import { Plugin } from "../plugin";
 import { indexHtmlMiddware } from "./middlewares/indexHtml";
 import { transformMiddleware } from "./middlewares/transform";
+import { staticMiddleware } from "./middlewares/static";
 
 export interface ServerContext {
     root: string;
@@ -41,6 +42,13 @@ export async function startDevServer() {
 
     // 转换ts/tsx文件
     app.use(transformMiddleware(serverContext));
+
+    /** 静态资源中间件
+     *  对于import的静态资源 在importAnalysis时将其封装为JS模块并指向真实地址并转到下一步
+     *  对于非import，响应具体内容用中间件
+     * */ 
+     
+    app.use(staticMiddleware(serverContext.root));
 
     app.listen(3000, async () => {
         // 依赖预构建
