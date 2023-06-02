@@ -23,7 +23,7 @@ export function importAnalysisPlugin(): Plugin {
   return {
     name: "m-vite:import-analysis",
     configureServer(s) {
-      // TODO:为什么保存服务端上下文？
+      // TODO:为什么保存服务端上下文？ 为了在HMR阶段获取当前模块图ModuleGraph
       serverContext = s;
     },
     async transform(code: string, id: string) {
@@ -35,6 +35,11 @@ export function importAnalysisPlugin(): Plugin {
       // 解析 import 语句
       const [imports] = parse(code);
       const ms = new MagicString(code);
+
+      const {moduleGraph} = serverContext;
+      const curMod = moduleGraph.getModuleById(id);
+      const importedModules = new Set<string>();
+
       // 对每一个 import 语句依次进行分析
       for (const importInfo of imports) {
         // 举例说明: const str = `import React from 'react'`
@@ -52,17 +57,21 @@ export function importAnalysisPlugin(): Plugin {
         // 第三方库: 路径重写到预构建产物的路径
         if (BARE_IMPORT_RE.test(modSource)) {
            const bundlePath = normalizePath(
-            path.join('/', PRE_BUNDLE_DIR, `${modSource}.js`)
-          );
+              path.join('/', PRE_BUNDLE_DIR, `${modSource}.js`)
+            );
+            importedModules.add(bundlePath);
           ms.overwrite(modStart, modEnd, bundlePath);
         } else if (modSource.startsWith(".") || modSource.startsWith("/")) {
           // 直接调用插件上下文的 resolve 方法，会自动经过路径解析插件的处理
           const resolved = await this.resolveId!(modSource, id);
           if (resolved) {
             ms.overwrite(modStart, modEnd, resolved.id);
+            importedModules.add(resolved.id);
           }
         }
       }
+
+      moduleGraph.updateModuleInfo(curMod!, importedModules);
 
       return {
         code: ms.toString(),

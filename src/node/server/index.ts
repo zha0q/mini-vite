@@ -7,12 +7,14 @@ import { Plugin } from "../plugin";
 import { indexHtmlMiddware } from "./middlewares/indexHtml";
 import { transformMiddleware } from "./middlewares/transform";
 import { staticMiddleware } from "./middlewares/static";
+import { ModuleGraph } from "../ModuleGraph";
 
 export interface ServerContext {
     root: string;
     pluginContainer: PluginContainer;
     app: connect.Server;
     plugins: Plugin[];
+    moduleGraph: ModuleGraph;
 }
 
 
@@ -22,12 +24,14 @@ export async function startDevServer() {
     const startTime = Date.now();
     const plugins = resolvePlugins();
     const pluginContainer = createPluginContainer(plugins);
+    const moduleGraph = new ModuleGraph((url) => pluginContainer.resolveId(url));
 
     const serverContext: ServerContext = {
         root: process.cwd(),
         app,
         pluginContainer,
-        plugins
+        plugins,
+        moduleGraph
     }
 
     // TODO: ？configureServer reolvePlugins
